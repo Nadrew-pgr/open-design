@@ -31,6 +31,8 @@ import type {
   LiveArtifact,
   LiveArtifactRefreshLogEntry,
   LiveArtifactSummary,
+  HyperFramesCompositionSummary,
+  HyperFramesCompositionsResponse,
   ProjectDeploymentsResponse,
   PromptTemplateDetail,
   PromptTemplateSummary,
@@ -1077,6 +1079,77 @@ export async function fetchLiveArtifactCode(
 
 export function projectFileUrl(projectId: string, name: string): string {
   return projectRawUrl(projectId, name);
+}
+
+export async function fetchHyperFramesCompositions(
+  projectId: string,
+): Promise<HyperFramesCompositionSummary[]> {
+  try {
+    const resp = await fetch(
+      `/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions`,
+      { cache: 'no-store' },
+    );
+    if (!resp.ok) return [];
+    const json = (await resp.json()) as HyperFramesCompositionsResponse;
+    return json.compositions ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export type MediaTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted';
+
+export interface MediaTaskSnapshot {
+  taskId: string;
+  status: MediaTaskStatus;
+  startedAt?: number;
+  endedAt?: number | null;
+  progress?: string[];
+  nextSince?: number;
+  file?: ProjectFile;
+  error?: { message?: string; status?: number; code?: string };
+}
+
+export async function generateHyperFramesVideo(
+  projectId: string,
+  input: { compositionDir: string; output?: string },
+): Promise<MediaTaskSnapshot> {
+  const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/media/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      surface: 'video',
+      model: 'hyperframes-html',
+      compositionDir: input.compositionDir,
+      ...(input.output ? { output: input.output } : {}),
+    }),
+  });
+  const json = await resp.json().catch(() => null) as MediaTaskSnapshot | { error?: string } | null;
+  if (!resp.ok) {
+    const message = typeof json?.error === 'string' ? json.error : `Render request failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return json as MediaTaskSnapshot;
+}
+
+export async function waitMediaTask(
+  taskId: string,
+  options?: { since?: number; timeoutMs?: number },
+): Promise<MediaTaskSnapshot> {
+  const resp = await fetch(`/api/media/tasks/${encodeURIComponent(taskId)}/wait`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      since: options?.since ?? 0,
+      timeoutMs: options?.timeoutMs ?? 1000,
+    }),
+  });
+  const json = await resp.json().catch(() => null) as MediaTaskSnapshot | { error?: string } | null;
+  if (!resp.ok) {
+    const message = typeof json?.error === 'string' ? json.error : `Task wait failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return json as MediaTaskSnapshot;
 }
 
 export interface ProjectFilePreviewSection {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { projectFileUrl } from '../providers/registry';
-import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '../types';
+import type { HyperFramesCompositionSummary, LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '../types';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
 import { getPluginFolderCandidates } from './design-files/pluginFolders';
 import { Icon } from './Icon';
@@ -15,9 +15,11 @@ interface Props {
   projectId: string;
   files: ProjectFile[];
   liveArtifacts: LiveArtifactWorkspaceEntry[];
+  hyperFramesCompositions?: HyperFramesCompositionSummary[];
   onRefreshFiles: () => Promise<void> | void;
   onOpenFile: (name: string) => void;
   onOpenLiveArtifact: (tabId: LiveArtifactWorkspaceEntry['tabId']) => void;
+  onOpenHyperFramesComposition?: (compositionId: string) => void;
   onRenameFile: (from: string, to: string) => Promise<ProjectFile | null> | ProjectFile | null;
   onDeleteFile: (name: string) => void;
   onDeleteFiles: (names: string[]) => Promise<void> | void;
@@ -63,9 +65,11 @@ export function DesignFilesPanel({
   projectId,
   files,
   liveArtifacts,
+  hyperFramesCompositions = [],
   onRefreshFiles,
   onOpenFile,
   onOpenLiveArtifact,
+  onOpenHyperFramesComposition,
   onRenameFile,
   onDeleteFile,
   onDeleteFiles,
@@ -674,7 +678,7 @@ export function DesignFilesPanel({
               ) : null}
             </div>
           ) : null}
-          {files.length === 0 && liveArtifacts.length === 0 ? (
+          {files.length === 0 && liveArtifacts.length === 0 && hyperFramesCompositions.length === 0 ? (
             <div className="df-empty" data-testid="design-files-empty">
               <div className="df-empty-pill">
                 <span className="df-empty-title">
@@ -747,6 +751,35 @@ export function DesignFilesPanel({
                       </span>
                       <span className="df-row-time">
                         {relativeTime(Date.parse(artifact.updatedAt) || Date.now(), t)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {hyperFramesCompositions.length > 0 ? (
+                <div className="df-section" key="hyperframes-compositions">
+                  <div className="df-section-label">
+                    HyperFrames
+                    <span className="df-section-count">{hyperFramesCompositions.length}</span>
+                  </div>
+                  {hyperFramesCompositions.map((composition) => (
+                    <button
+                      key={composition.id}
+                      type="button"
+                      data-testid={`design-hyperframes-row-${composition.id}`}
+                      className="df-row df-row-hyperframes"
+                      onDoubleClick={() => onOpenHyperFramesComposition?.(composition.id)}
+                      onClick={() => onOpenHyperFramesComposition?.(composition.id)}
+                    >
+                      <span className="df-row-icon" data-kind="hyperframes" aria-hidden>
+                        <Icon name="play" size={14} />
+                      </span>
+                      <span className="df-row-name-wrap">
+                        <span className="df-row-name">{composition.title}</span>
+                        <span className="df-row-sub">{composition.compositionDir}</span>
+                      </span>
+                      <span className="df-row-time">
+                        {relativeTime(Date.parse(composition.updatedAt) || Date.now(), t)}
                       </span>
                     </button>
                   ))}

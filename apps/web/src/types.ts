@@ -30,6 +30,8 @@ import type {
   LiveArtifactRefreshStatus,
   LiveArtifactStatus,
   LiveArtifactSummary,
+  HyperFramesCompositionsResponse,
+  HyperFramesCompositionSummary,
   MediaAspect,
   OrbitRunSummary,
   OrbitStatusResponse,
@@ -85,7 +87,8 @@ export type ExecMode = 'daemon' | 'api';
 export type ApiProtocol = 'anthropic' | 'openai' | 'azure' | 'google' | 'ollama';
 
 export type LiveArtifactTabId = `live:${string}`;
-export type ProjectWorkspaceTabId = string | LiveArtifactTabId;
+export type HyperFramesCompositionTabId = `hyperframes:${string}`;
+export type ProjectWorkspaceTabId = string | LiveArtifactTabId | HyperFramesCompositionTabId;
 
 export function liveArtifactTabId(artifactId: string): LiveArtifactTabId {
   return `live:${artifactId}`;
@@ -97,6 +100,18 @@ export function isLiveArtifactTabId(tabId: string): tabId is LiveArtifactTabId {
 
 export function liveArtifactIdFromTabId(tabId: LiveArtifactTabId): string {
   return tabId.slice('live:'.length);
+}
+
+export function hyperFramesCompositionTabId(compositionId: string): HyperFramesCompositionTabId {
+  return `hyperframes:${compositionId}`;
+}
+
+export function isHyperFramesCompositionTabId(tabId: string): tabId is HyperFramesCompositionTabId {
+  return tabId.startsWith('hyperframes:') && tabId.length > 'hyperframes:'.length;
+}
+
+export function hyperFramesCompositionIdFromTabId(tabId: HyperFramesCompositionTabId): string {
+  return tabId.slice('hyperframes:'.length);
 }
 
 export type LiveArtifactViewerTab =
@@ -128,7 +143,16 @@ export interface LiveArtifactWorkspaceEntry {
   lastRefreshedAt?: string;
 }
 
-export type ProjectWorkspaceEntry = ProjectFileWorkspaceEntry | LiveArtifactWorkspaceEntry;
+export interface HyperFramesCompositionWorkspaceEntry {
+  kind: 'hyperframes-composition';
+  tabId: HyperFramesCompositionTabId;
+  composition: HyperFramesCompositionSummary;
+}
+
+export type ProjectWorkspaceEntry =
+  | ProjectFileWorkspaceEntry
+  | LiveArtifactWorkspaceEntry
+  | HyperFramesCompositionWorkspaceEntry;
 
 export function liveArtifactSummaryToWorkspaceEntry(
   liveArtifact: LiveArtifactSummary,
@@ -447,6 +471,8 @@ export type {
   LiveArtifactRefreshStatus,
   LiveArtifactStatus,
   LiveArtifactSummary,
+  HyperFramesCompositionsResponse,
+  HyperFramesCompositionSummary,
   MediaAspect,
   ProjectDeploymentsResponse,
   Project,

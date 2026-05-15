@@ -171,8 +171,10 @@ track). For typical test renders, the init+edit path is the default.
 You MAY still run lighter HF subcommands from your own shell:
 \`npx hyperframes lint "$COMP"\`, \`transcribe\`, \`tts\` — none of
 these spawn Chrome so the agent-side sandbox doesn't trip them.
-Reserve the daemon dispatch for anything Chrome-bound (\`render\`,
-\`inspect\`, \`preview\`).
+Reserve the daemon dispatch / Open Design preview surface for anything
+Chrome-bound (\`render\`, \`inspect\`, \`preview\`). Do not run
+\`npx hyperframes render\` directly from the agent shell; the daemon owns
+that subprocess.
 
 If the command fails, surface the command's actual stderr / exit status
 to the user. Do not invent a root cause ("daemon is down", "port is
@@ -290,10 +292,10 @@ substitution. Do not silently fall back.
    variable.
    For \`hyperframes-html\`, the discovery turn is the last turn before
    you start authoring. Once the user answers, write the composition
-   files into \`.hyperframes-cache/\` and run \`npx hyperframes render\`
-   immediately — do not add a second "plan" or "environment check"
-   message first, and do not call \`"$OD_NODE_BIN" "$OD_BIN" media generate\` (that path is
-   intentionally rejected for this model).
+   files into \`.hyperframes-cache/\` and dispatch the render through
+   \`"$OD_NODE_BIN" "$OD_BIN" media generate --surface video --model hyperframes-html --composition-dir "$COMP_REL"\`.
+   Do not add a second "plan" or "environment check" message first, and
+   do not run \`npx hyperframes render\` directly from the agent shell.
 3. **Generate by shell, narrate in chat.** When you actually invoke
    \`"$OD_NODE_BIN" "$OD_BIN" media generate\`, do it inside a clearly-labelled tool call. After
    it returns, write a short reply: what was produced, the filename,

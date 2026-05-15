@@ -10,6 +10,7 @@ import { useT } from '../i18n';
 import { isMacPlatform } from '../utils/platform';
 import {
   deleteProjectFile,
+  fetchHyperFramesCompositions,
   fetchProjectFileText,
   renameProjectFile,
   type UploadProjectFilesResult,
@@ -18,7 +19,11 @@ import {
 } from '../providers/registry';
 import {
   type ChatCommentAttachment,
+  hyperFramesCompositionIdFromTabId,
+  hyperFramesCompositionTabId,
+  type HyperFramesCompositionSummary,
   liveArtifactSummaryToWorkspaceEntry,
+  isHyperFramesCompositionTabId,
   type LiveArtifactSummary,
   type LiveArtifactEventItem,
   type LiveArtifactWorkspaceEntry,
@@ -30,6 +35,7 @@ import {
 import { DesignFilesPanel } from './DesignFilesPanel';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
 import { FileViewer, LiveArtifactViewer } from './FileViewer';
+import { HyperFramesPreviewViewer } from './HyperFramesPreviewViewer';
 import { Icon } from './Icon';
 import { LiveArtifactBadges } from './LiveArtifactBadges';
 import { PasteTextDialog } from './PasteTextDialog';
@@ -118,6 +124,9 @@ export function FileWorkspace({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [sketches, setSketches] = useState<Record<string, SketchState>>({});
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const [hyperFramesCompositions, setHyperFramesCompositions] = useState<
+    HyperFramesCompositionSummary[]
+  >([]);
   const [draggedTabName, setDraggedTabName] = useState<string | null>(null);
   const [dragOverTab, setDragOverTab] = useState<{
     name: string;
@@ -136,6 +145,42 @@ export function FileWorkspace({
     () => liveArtifacts.map(liveArtifactSummaryToWorkspaceEntry),
     [liveArtifacts],
   );
+
+  const hyperFramesEntries = useMemo(
+    () =>
+      hyperFramesCompositions.map((composition) => ({
+        kind: 'hyperframes-composition' as const,
+        tabId: hyperFramesCompositionTabId(composition.id),
+        composition,
+      })),
+    [hyperFramesCompositions],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchHyperFramesCompositions(projectId);
+      if (!cancelled) setHyperFramesCompositions(next);
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, filesRefreshKey]);
+
+  useEffect(() => {
+    if (!streaming) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void fetchHyperFramesCompositions(projectId).then((next) => {
+        if (!cancelled) setHyperFramesCompositions(next);
+      });
+    }, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [projectId, streaming]);
 
   // Pull the persisted active tab in when the parent's hydration completes
   // (or on project switch). Fall back to the Design Files browser so a
@@ -189,6 +234,16 @@ export function FileWorkspace({
       active: name,
     });
     setActiveTab(name);
+  }
+
+  function openHyperFramesComposition(compositionId: string) {
+    const tabId = hyperFramesCompositionTabId(compositionId);
+    setUploadError(null);
+    onTabsStateChange({
+      tabs: persistedTabs.includes(tabId) ? persistedTabs : [...persistedTabs, tabId],
+      active: tabId,
+    });
+    setActiveTab(tabId);
   }
 
   function closeTab(name: string) {
@@ -605,6 +660,13 @@ export function FileWorkspace({
     return liveArtifactEntries.find((entry) => entry.tabId === activeTab) ?? null;
   }, [activeTab, liveArtifactEntries]);
 
+  const activeHyperFramesEntry = useMemo(() => {
+    if (activeTab === DESIGN_FILES_TAB) return null;
+    if (!isHyperFramesCompositionTabId(activeTab)) return null;
+    const compositionId = hyperFramesCompositionIdFromTabId(activeTab);
+    return hyperFramesEntries.find((entry) => entry.composition.id === compositionId) ?? null;
+  }, [activeTab, hyperFramesEntries]);
+
   // Tabs rendered are persisted tabs plus any pending (un-saved) sketches.
   const tabNames = useMemo(() => {
     const seen = new Set(persistedTabs);
@@ -673,17 +735,18 @@ export function FileWorkspace({
             const isPending = sketchEntry && !sketchEntry.persisted;
             const onDisk = visibleFiles.find((f) => f.name === name);
             const liveArtifact = liveArtifactEntries.find((entry) => entry.tabId === name);
+            const hyperFramesEntry = hyperFramesEntries.find((entry) => entry.tabId === name);
             const kind = liveArtifact ? 'live-artifact' : onDisk?.kind ?? (isSketchName(name) ? 'sketch' : 'text');
             return (
               <Tab
                 key={name}
-                label={`${liveArtifact?.title ?? name}${dirtyMark}`}
+                label={`${liveArtifact?.title ?? hyperFramesEntry?.composition.title ?? name}${dirtyMark}`}
                 active={activeTab === name}
                 onActivate={() =>
                   isPending ? activatePending(name) : setPersistedActive(name)
                 }
                 onClose={() => closeTab(name)}
-                kind={kind}
+                kind={hyperFramesEntry ? 'code' : kind}
                 liveArtifact={liveArtifact}
                 draggable={persistedTabs.includes(name)}
                 dragging={draggedTabName === name}
@@ -754,9 +817,11 @@ export function FileWorkspace({
             projectId={projectId}
             files={visibleFiles}
             liveArtifacts={liveArtifactEntries}
+            hyperFramesCompositions={hyperFramesCompositions}
             onRefreshFiles={onRefreshFiles}
             onOpenFile={openFile}
             onOpenLiveArtifact={(tabId) => openFile(tabId)}
+            onOpenHyperFramesComposition={openHyperFramesComposition}
             onRenameFile={handleRename}
             onDeleteFile={(name) => void handleDelete(name)}
             onDeleteFiles={handleDeleteMany}
@@ -792,6 +857,13 @@ export function FileWorkspace({
             liveArtifact={activeLiveArtifact}
             liveArtifactEvents={liveArtifactEvents}
             onRefreshArtifacts={onRefreshFiles}
+          />
+        ) : activeHyperFramesEntry ? (
+          <HyperFramesPreviewViewer
+            projectId={projectId}
+            composition={activeHyperFramesEntry.composition}
+            onRefreshFiles={onRefreshFiles}
+            onOpenFile={openFile}
           />
         ) : activeFile ? (
           <FileViewer

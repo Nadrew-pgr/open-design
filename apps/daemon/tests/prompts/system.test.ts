@@ -153,6 +153,10 @@ describe('composeSystemPrompt', () => {
     expect(prompt).toContain('## Active skill — hyperframes');
     expect(prompt).toContain('**Pre-flight (do this before any other tool):**');
     expect(prompt).toContain('`references/html-in-canvas.md`');
+    expect(prompt).toContain('media generate --model hyperframes-html');
+    expect(prompt).toContain('--composition-dir "$COMP_REL"');
+    expect(prompt).not.toContain('AGENT_RENDERED');
+    expect(prompt).not.toContain('rendered by you directly via npx');
   });
 
   it('does not add the responsive web contract to deck metadata without platform fields', () => {

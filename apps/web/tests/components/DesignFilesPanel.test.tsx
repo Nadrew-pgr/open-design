@@ -123,6 +123,43 @@ describe('DesignFilesPanel grouping', () => {
     expect(screen.getByTestId('design-file-row-live:artifact-1')).toBeTruthy();
   });
 
+  it('surfaces HyperFrames compositions as virtual design entries', () => {
+    const onOpenHyperFramesComposition = vi.fn();
+    render(
+      <DesignFilesPanel
+        projectId="project-1"
+        files={[]}
+        liveArtifacts={[]}
+        hyperFramesCompositions={[
+          {
+            id: 'comp-a',
+            title: 'Launch Cards',
+            compositionDir: '.hyperframes-cache/comp-a',
+            entryFile: 'index.html',
+            previewUrl: '/api/projects/project-1/hyperframes/compositions/comp-a/preview',
+            updatedAt: '2026-05-15T12:00:00.000Z',
+          },
+        ]}
+        onRefreshFiles={vi.fn()}
+        onOpenFile={vi.fn()}
+        onOpenLiveArtifact={vi.fn()}
+        onOpenHyperFramesComposition={onOpenHyperFramesComposition}
+        onRenameFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+        onDeleteFiles={vi.fn()}
+        onUpload={vi.fn()}
+        onUploadFiles={vi.fn()}
+        onPaste={vi.fn()}
+        onNewSketch={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('design-hyperframes-row-comp-a'));
+    expect(screen.getByText('HyperFrames')).toBeTruthy();
+    expect(screen.getByText('Launch Cards')).toBeTruthy();
+    expect(onOpenHyperFramesComposition).toHaveBeenCalledWith('comp-a');
+  });
+
   it('groups files by kind when kind grouping is selected', () => {
     renderPanel([
       file({ name: 'page.html', kind: 'html', mime: 'text/html' }),

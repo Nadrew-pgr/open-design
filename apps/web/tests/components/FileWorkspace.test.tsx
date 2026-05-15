@@ -18,6 +18,7 @@ vi.mock('../../src/providers/registry', async () => {
   );
   return {
     ...actual,
+    fetchHyperFramesCompositions: vi.fn(async () => []),
     uploadProjectFiles: vi.fn(),
   };
 });

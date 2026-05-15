@@ -345,6 +345,22 @@ describe('composeSystemPrompt — metadata.promptTemplate', () => {
     expect(out).toContain('`2` from `media wait` is not a failure');
   });
 
+  it('keeps hyperframes-html on the daemon media dispatcher path', () => {
+    const out = composeSystemPrompt({
+      metadata: {
+        kind: 'video',
+        videoModel: 'hyperframes-html',
+      },
+    });
+
+    expect(out).toContain(
+      'media generate --surface video --model hyperframes-html --composition-dir "$COMP_REL"',
+    );
+    expect(out).toContain('`npx hyperframes render` directly');
+    expect(out).not.toContain('intentionally rejected for this model');
+    expect(out).not.toContain('dispatcher path returns a 400');
+  });
+
   it('surfaces ElevenLabs voice options for project discovery when no voice was preselected', () => {
     const voiceOptions = Array.from({ length: 50 }, (_, index) => {
       const ordinal = index + 1;

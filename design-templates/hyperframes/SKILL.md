@@ -126,12 +126,12 @@ The lighter HF subcommands you CAN still run from your own shell
 - `npx hyperframes transcribe <audio>` — generate captions
 - `npx hyperframes tts <text>` — generate narration
 
-Reserve the daemon dispatch for `render`/`inspect`/`preview` (anything
-Chrome-bound).
-
-**Do NOT** call `"$OD_NODE_BIN" "$OD_BIN" media generate --model hyperframes-html` — that
-dispatcher path returns a 400 (`AGENT_RENDERED`) on purpose. HyperFrames
-is rendered by you directly via npx.
+Reserve the daemon dispatch / Open Design preview surface for
+`render`/`inspect`/`preview` (anything Chrome-bound). For MP4 output,
+call `"$OD_NODE_BIN" "$OD_BIN" media generate --model hyperframes-html`
+with `--composition-dir "$COMP_REL"`; the dispatcher runs HyperFrames in
+the daemon process. Do not run `npx hyperframes render` directly from
+the agent shell.
 
 **Do NOT** drop `hyperframes.json` / `meta.json` / `index.html` in the
 project root; OD's file listing scans recursively and the user would see

@@ -9585,6 +9585,9 @@ button.connector-action.is-loading {
 .df-row-live-artifact {
   grid-template-columns: 36px minmax(0, 1fr) auto;
 }
+.df-row-hyperframes {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
 .df-row-plugin-folder {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, auto);
   cursor: default;
@@ -9993,6 +9996,13 @@ button.connector-action.is-loading {
   flex-shrink: 0;
 }
 .viewer-toolbar-left { display: inline-flex; align-items: center; gap: 8px; }
+.viewer-meta.faint {
+  color: var(--text-faint);
+  max-width: min(42vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .viewer-toolbar-actions { display: inline-flex; gap: 2px; align-items: center; }
 .viewer-toolbar .icon-only,
 .viewer-toolbar-actions .icon-only {
@@ -10630,6 +10640,38 @@ button.connector-action.is-loading {
   height: 100%;
   border: none;
   background: white;
+}
+.hyperframes-preview-body {
+  overflow: hidden;
+  background: #050506;
+}
+.hyperframes-preview-body iframe {
+  display: block;
+}
+.hyperframes-render-status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.hyperframes-render-progress {
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hyperframes-render-error {
+  color: var(--red);
 }
 .viewer-viewport-switcher {
   position: relative;

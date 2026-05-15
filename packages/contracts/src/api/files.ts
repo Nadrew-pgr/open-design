@@ -46,6 +46,20 @@ export interface ProjectFilesResponse {
   files: ProjectFile[];
 }
 
+export interface HyperFramesCompositionSummary {
+  id: string;
+  title: string;
+  compositionDir: string;
+  entryFile: 'index.html';
+  previewUrl: string;
+  createdAt?: string;
+  updatedAt: string;
+}
+
+export interface HyperFramesCompositionsResponse {
+  compositions: HyperFramesCompositionSummary[];
+}
+
 export interface ProjectFileResponse {
   file: ProjectFile;
 }
