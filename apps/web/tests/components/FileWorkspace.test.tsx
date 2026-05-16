@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FileWorkspace, scrollWorkspaceTabsWithWheel } from '../../src/components/FileWorkspace';
 import { DesignFilesPanel } from '../../src/components/DesignFilesPanel';
 import { projectSplitClassName } from '../../src/components/ProjectView';
-import { uploadProjectFiles } from '../../src/providers/registry';
+import { fetchHyperFramesCompositions, uploadProjectFiles } from '../../src/providers/registry';
 import type { ProjectFile } from '../../src/types';
 
 vi.mock('../../src/providers/registry', async () => {
@@ -19,10 +19,18 @@ vi.mock('../../src/providers/registry', async () => {
   return {
     ...actual,
     fetchHyperFramesCompositions: vi.fn(async () => []),
+    startHyperFramesStudio: vi.fn(async () => ({
+      studioUrl: 'http://127.0.0.1:3122/#project/comp-a',
+      projectName: 'comp-a',
+      compositionDir: '.hyperframes-cache/comp-a',
+      port: 3122,
+    })),
+    stopHyperFramesStudio: vi.fn(async () => ({ stopped: true })),
     uploadProjectFiles: vi.fn(),
   };
 });
 
+const mockedFetchHyperFramesCompositions = vi.mocked(fetchHyperFramesCompositions);
 const mockedUploadProjectFiles = vi.mocked(uploadProjectFiles);
 
 let root: Root | null = null;
@@ -307,6 +315,43 @@ describe('FileWorkspace upload input', () => {
     );
 
     expect(markup).toContain('Show chat');
+  });
+
+  it('focuses the workspace when a HyperFrames composition opens', async () => {
+    const onFocusModeChange = vi.fn();
+    mockedFetchHyperFramesCompositions.mockResolvedValueOnce([
+      {
+        id: 'comp-a',
+        title: 'Launch Cards',
+        compositionDir: '.hyperframes-cache/comp-a',
+        entryFile: 'index.html',
+        previewUrl: '/api/projects/project-1/hyperframes/compositions/comp-a/preview',
+        updatedAt: '2026-05-15T12:00:00.000Z',
+      },
+    ]);
+
+    render(
+      <FileWorkspace
+        projectId="project-1"
+        projectKind="prototype"
+        files={[]}
+        liveArtifacts={[]}
+        onRefreshFiles={vi.fn()}
+        isDeck={false}
+        tabsState={{ tabs: [], active: null }}
+        onTabsStateChange={vi.fn()}
+        focusMode={false}
+        onFocusModeChange={onFocusModeChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('design-hyperframes-row-comp-a')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId('design-hyperframes-row-comp-a'));
+
+    expect(onFocusModeChange).toHaveBeenCalledWith(true);
   });
 });
 

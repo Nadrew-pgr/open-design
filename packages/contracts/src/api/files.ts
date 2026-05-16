@@ -60,6 +60,17 @@ export interface HyperFramesCompositionsResponse {
   compositions: HyperFramesCompositionSummary[];
 }
 
+export interface HyperFramesStudioResponse {
+  studioUrl: string;
+  projectName: string;
+  compositionDir: string;
+  port: number;
+}
+
+export interface HyperFramesStudioStopResponse {
+  stopped: boolean;
+}
+
 export interface ProjectFileResponse {
   file: ProjectFile;
 }

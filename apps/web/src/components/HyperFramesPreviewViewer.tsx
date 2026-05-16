@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HyperFramesCompositionSummary } from '../types';
 import {
   generateHyperFramesVideo,
+  startHyperFramesStudio,
+  stopHyperFramesStudio,
   waitMediaTask,
   type MediaTaskSnapshot,
 } from '../providers/registry';
@@ -24,17 +26,64 @@ export function HyperFramesPreviewViewer({
   const [status, setStatus] = useState<string | null>(null);
   const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [studioUrl, setStudioUrl] = useState<string | null>(null);
+  const [studioError, setStudioError] = useState<string | null>(null);
+  const [studioStarting, setStudioStarting] = useState(false);
   const runIdRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStudioUrl(null);
+    setStudioError(null);
+    setStudioStarting(true);
+    void startHyperFramesStudio(projectId, composition.id)
+      .then((studio) => {
+        if (!cancelled) setStudioUrl(studio.studioUrl);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setStudioError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStudioStarting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, composition.id]);
+
+  useEffect(() => {
+    const stopStudio = (keepalive = false) => {
+      void stopHyperFramesStudio(projectId, composition.id, { keepalive }).catch(() => {
+        // best effort cleanup when the tab closes or switches compositions
+      });
+    };
+    const handlePageHide = () => stopStudio(true);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      runIdRef.current += 1;
+      stopStudio();
+    };
+  }, [projectId, composition.id]);
 
   async function handleRender() {
     const runId = runIdRef.current + 1;
     runIdRef.current = runId;
     setRendering(true);
-    setStatus('Starting MP4 render');
+    setStatus('Stopping Studio before MP4 render');
     setProgress([]);
     setError(null);
 
     try {
+      await stopHyperFramesStudio(projectId, composition.id);
+      if (runIdRef.current !== runId) return;
+      setStudioUrl(null);
+      setStudioError(null);
+      setStudioStarting(false);
+      setStatus('Starting MP4 render');
       let snapshot = await generateHyperFramesVideo(projectId, {
         compositionDir: composition.compositionDir,
         output: suggestedOutputName(composition),
@@ -80,9 +129,13 @@ export function HyperFramesPreviewViewer({
         <div className="viewer-toolbar-actions">
           <a
             className="ghost-link"
-            href={composition.previewUrl}
+            href={studioUrl ?? undefined}
             target="_blank"
             rel="noreferrer noopener"
+            aria-disabled={studioUrl ? undefined : true}
+            onClick={(event) => {
+              if (!studioUrl) event.preventDefault();
+            }}
           >
             Open
           </a>
@@ -99,11 +152,20 @@ export function HyperFramesPreviewViewer({
         </div>
       </div>
       <div className="viewer-body hyperframes-preview-body">
-        <iframe
-          title={`HyperFrames preview: ${composition.title}`}
-          src={`${composition.previewUrl}?v=${encodeURIComponent(composition.updatedAt)}`}
-          sandbox="allow-scripts allow-downloads"
-        />
+        {studioUrl ? (
+          <iframe
+            title={`HyperFrames Studio: ${composition.title}`}
+            src={studioUrl}
+            sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups"
+          />
+        ) : (
+          <div className="hyperframes-studio-loading" role="status">
+            <span>{studioError ? 'HyperFrames Studio failed to start' : 'Starting HyperFrames Studio'}</span>
+            <small>
+              {studioError ?? (studioStarting ? composition.compositionDir : 'Preparing preview')}
+            </small>
+          </div>
+        )}
         {status || error || progress.length > 0 ? (
           <div className="hyperframes-render-status" role="status">
             {error ? (

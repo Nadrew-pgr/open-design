@@ -1,8 +1,14 @@
 import type http from 'node:http';
+import type { ChildProcess } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  configureHyperFramesStudioLauncherForTests,
+  resetHyperFramesStudioRoutesForTests,
+} from '../src/hyperframes-routes.js';
 import { startServer } from '../src/server.js';
 
 describe('HyperFrames composition routes', () => {
@@ -20,6 +26,10 @@ describe('HyperFrames composition routes', () => {
 
   afterAll(() => {
     return new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  afterEach(async () => {
+    await resetHyperFramesStudioRoutesForTests();
   });
 
   it('lists valid hidden cache compositions without adding them to normal files', async () => {
@@ -85,6 +95,76 @@ describe('HyperFrames composition routes', () => {
     expect(html).toContain('window.__timelines');
   });
 
+  it('rejects cross-origin Studio starts without launching HyperFrames', async () => {
+    const projectId = `hf-studio-origin-${Date.now()}`;
+    await createProject(projectId);
+    await writeComposition(projectId, 'comp-a', { name: 'Preview Fixture' });
+    let launchCount = 0;
+    configureHyperFramesStudioLauncherForTests(async ({ composition, port }) => {
+      launchCount += 1;
+      return {
+        studioUrl: `http://127.0.0.1:${port}/#project/${encodeURIComponent(composition.id)}`,
+        projectName: composition.id,
+        compositionDir: composition.compositionDir,
+        port,
+      };
+    });
+
+    const resp = await fetch(
+      `${baseUrl}/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/comp-a/studio`,
+      { method: 'POST', headers: { Origin: 'https://example.invalid' } },
+    );
+
+    expect(resp.status).toBe(403);
+    expect(launchCount).toBe(0);
+  });
+
+  it('starts Studio on clean fresh ports and stops stale preview sessions', async () => {
+    const projectId = `hf-studio-${Date.now()}`;
+    await createProject(projectId);
+    await writeComposition(projectId, 'comp-a', { name: 'Comp A' });
+    await writeComposition(projectId, 'comp-b', { name: 'Comp B' });
+    const children: FakeStudioChild[] = [];
+    configureHyperFramesStudioLauncherForTests(async ({ composition, port, onChild }) => {
+      const child = new FakeStudioChild();
+      children.push(child);
+      onChild(child as unknown as ChildProcess);
+      return {
+        studioUrl: `http://127.0.0.1:${port}/#project/${encodeURIComponent(composition.id)}`,
+        projectName: composition.id,
+        compositionDir: composition.compositionDir,
+        port,
+      };
+    });
+
+    const firstResp = await fetch(
+      `${baseUrl}/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/comp-a/studio`,
+      { method: 'POST' },
+    );
+    expect(firstResp.status).toBe(200);
+    const first = (await firstResp.json()) as { studioUrl: string; port: number };
+    expect(first.studioUrl).toBe(`http://127.0.0.1:${first.port}/#project/comp-a`);
+    expect(first.studioUrl).not.toContain('?');
+    expect(first.studioUrl).not.toContain('tab=renders');
+
+    const secondResp = await fetch(
+      `${baseUrl}/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/comp-b/studio`,
+      { method: 'POST' },
+    );
+    expect(secondResp.status).toBe(200);
+    const second = (await secondResp.json()) as { port: number };
+    expect(second.port).not.toBe(first.port);
+    expect(children[0]?.signals).toContain('SIGTERM');
+
+    const stopResp = await fetch(
+      `${baseUrl}/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/comp-b/studio`,
+      { method: 'DELETE' },
+    );
+    expect(stopResp.status).toBe(200);
+    expect(await stopResp.json()).toMatchObject({ stopped: true });
+    expect(children[1]?.signals).toContain('SIGTERM');
+  });
+
   async function createProject(projectId: string) {
     const resp = await fetch(`${baseUrl}/api/projects`, {
       method: 'POST',
@@ -120,3 +200,17 @@ describe('HyperFrames composition routes', () => {
     return path.join(dataDir, 'projects', projectId, ...parts);
   }
 });
+
+class FakeStudioChild extends EventEmitter {
+  killed = false;
+  signals: string[] = [];
+
+  kill(signal?: NodeJS.Signals | number): boolean {
+    this.signals.push(String(signal ?? 'SIGTERM'));
+    if (!this.killed) {
+      this.killed = true;
+      queueMicrotask(() => this.emit('close', null, signal ?? 'SIGTERM'));
+    }
+    return true;
+  }
+}

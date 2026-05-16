@@ -239,6 +239,7 @@ export function FileWorkspace({
   function openHyperFramesComposition(compositionId: string) {
     const tabId = hyperFramesCompositionTabId(compositionId);
     setUploadError(null);
+    onFocusModeChange?.(true);
     onTabsStateChange({
       tabs: persistedTabs.includes(tabId) ? persistedTabs : [...persistedTabs, tabId],
       active: tabId,
@@ -666,6 +667,12 @@ export function FileWorkspace({
     const compositionId = hyperFramesCompositionIdFromTabId(activeTab);
     return hyperFramesEntries.find((entry) => entry.composition.id === compositionId) ?? null;
   }, [activeTab, hyperFramesEntries]);
+  const activeHyperFramesTabId = activeHyperFramesEntry?.tabId ?? null;
+
+  useEffect(() => {
+    if (!activeHyperFramesTabId) return;
+    onFocusModeChange?.(true);
+  }, [activeHyperFramesTabId, onFocusModeChange]);
 
   // Tabs rendered are persisted tabs plus any pending (un-saved) sketches.
   const tabNames = useMemo(() => {

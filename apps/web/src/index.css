@@ -10648,6 +10648,25 @@ button.connector-action.is-loading {
 .hyperframes-preview-body iframe {
   display: block;
 }
+.hyperframes-studio-loading {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.hyperframes-studio-loading span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.hyperframes-studio-loading small {
+  max-width: min(520px, 80vw);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
 .hyperframes-render-status {
   position: absolute;
   left: 12px;

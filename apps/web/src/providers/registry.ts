@@ -33,6 +33,8 @@ import type {
   LiveArtifactSummary,
   HyperFramesCompositionSummary,
   HyperFramesCompositionsResponse,
+  HyperFramesStudioResponse,
+  HyperFramesStudioStopResponse,
   ProjectDeploymentsResponse,
   PromptTemplateDetail,
   PromptTemplateSummary,
@@ -1097,7 +1099,53 @@ export async function fetchHyperFramesCompositions(
   }
 }
 
+export async function startHyperFramesStudio(
+  projectId: string,
+  compositionId: string,
+): Promise<HyperFramesStudioResponse> {
+  const resp = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/${encodeURIComponent(compositionId)}/studio`,
+    { method: 'POST' },
+  );
+  const json = await resp.json().catch(() => null) as HyperFramesStudioResponse | { error?: string } | null;
+  if (!resp.ok) {
+    const message = hasStringError(json)
+      ? json.error
+      : `Studio start failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return json as HyperFramesStudioResponse;
+}
+
+export async function stopHyperFramesStudio(
+  projectId: string,
+  compositionId: string,
+  options?: { keepalive?: boolean },
+): Promise<HyperFramesStudioStopResponse> {
+  const resp = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/hyperframes/compositions/${encodeURIComponent(compositionId)}/studio`,
+    { method: 'DELETE', keepalive: options?.keepalive },
+  );
+  const json = await resp.json().catch(() => null) as HyperFramesStudioStopResponse | { error?: string } | null;
+  if (!resp.ok) {
+    const message = hasStringError(json)
+      ? json.error
+      : `Studio stop failed (${resp.status})`;
+    throw new Error(message);
+  }
+  return json as HyperFramesStudioStopResponse;
+}
+
 export type MediaTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted';
+
+function hasStringError(value: unknown): value is { error: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'error' in value &&
+    typeof (value as { error?: unknown }).error === 'string'
+  );
+}
 
 export interface MediaTaskSnapshot {
   taskId: string;

@@ -299,7 +299,7 @@ import { registerMcpRoutes } from './mcp-routes.js';
 import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
-import { registerHyperFramesRoutes } from './hyperframes-routes.js';
+import { registerHyperFramesRoutes, shutdownHyperFramesStudios } from './hyperframes-routes.js';
 import { registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
 import { registerFinalizeRoutes, registerImportRoutes, registerProjectExportRoutes } from './import-export-routes.js';
 import { registerChatRoutes } from './chat-routes.js';
@@ -9977,6 +9977,7 @@ export async function startServer({
       daemonShuttingDown = true;
       await design.runs.shutdownActive({ graceMs: resolveChatRunShutdownGraceMs() });
       await design.analytics.shutdown();
+      await shutdownHyperFramesStudios();
     };
     let server;
     try {
